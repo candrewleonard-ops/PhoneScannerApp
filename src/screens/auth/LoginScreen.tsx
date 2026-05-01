@@ -1,36 +1,52 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { useAuthStore } from '@/store/authStore';
-import Screen from '@/components/Screen';
-import TextInput from '@/components/TextInput';
-import Button from '@/components/Button';
-import ErrorMessage from '@/components/ErrorMessage';
+import { useAuth } from '@/hooks';
+import { Screen, TextInput, Button, ErrorMessage } from '@/components';
+import { colors, spacing, fontSize, fontWeight } from '@/constants/theme';
+import { APP_NAME } from '@/constants';
+import { isValidEmail } from '@/lib';
+import { AuthScreenProps } from '@/types';
 
-const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+const LoginScreen: React.FC<AuthScreenProps<'Login'>> = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const { signIn, loading, error, clearError } = useAuthStore();
+  const [validationError, setValidationError] = useState('');
+  const { signIn, loading, error, clearError } = useAuth();
 
   const handleLogin = async () => {
-    if (!email || !password) {
+    setValidationError('');
+    if (!isValidEmail(email)) {
+      setValidationError('Please enter a valid email');
+      return;
+    }
+    if (!password) {
+      setValidationError('Please enter your password');
       return;
     }
     try {
-      await signIn(email, password);
-    } catch (err) {
-      // Error handled in store
+      await signIn(email.trim(), password);
+    } catch {
+      // handled in store
     }
   };
 
   return (
-    <Screen scrollable spacing>
+    <Screen scrollable>
       <View style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.title}>Reinnovation Scan</Text>
+          <Text style={styles.title}>{APP_NAME}</Text>
           <Text style={styles.subtitle}>Real Estate Inspection Tool</Text>
         </View>
 
-        {error && <ErrorMessage message={error} onDismiss={clearError} />}
+        {(error || validationError) && (
+          <ErrorMessage
+            message={error || validationError}
+            onDismiss={() => {
+              clearError();
+              setValidationError('');
+            }}
+          />
+        )}
 
         <TextInput
           label="Email"
@@ -50,19 +66,11 @@ const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           editable={!loading}
         />
 
-        <Button
-          title="Sign In"
-          onPress={handleLogin}
-          loading={loading}
-          disabled={!email || !password}
-        />
+        <Button title="Sign In" onPress={handleLogin} loading={loading} />
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>Don't have an account? </Text>
-          <Text
-            style={styles.link}
-            onPress={() => navigation.navigate('SignUp')}
-          >
+          <Text style={styles.link} onPress={() => navigation.navigate('SignUp')}>
             Sign Up
           </Text>
         </View>
@@ -77,32 +85,32 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   header: {
-    marginBottom: 32,
+    marginBottom: spacing.xxl,
     alignItems: 'center',
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#1f2937',
-    marginBottom: 8,
+    fontSize: fontSize.display,
+    fontWeight: fontWeight.bold as '700',
+    color: colors.text,
+    marginBottom: spacing.sm,
   },
   subtitle: {
-    fontSize: 14,
-    color: '#6b7280',
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
   },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 20,
+    marginTop: spacing.lg,
   },
   footerText: {
-    fontSize: 14,
-    color: '#6b7280',
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
   },
   link: {
-    fontSize: 14,
-    color: '#2563eb',
-    fontWeight: '600',
+    fontSize: fontSize.sm,
+    color: colors.primary,
+    fontWeight: fontWeight.semibold as '600',
   },
 });
 

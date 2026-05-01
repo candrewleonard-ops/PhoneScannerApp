@@ -1,102 +1,104 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, Text, Alert } from 'react-native';
-import { useAuthStore } from '@/store/authStore';
-import Screen from '@/components/Screen';
-import Button from '@/components/Button';
+import { useAuth } from '@/hooks';
+import { Screen, Button, Card } from '@/components';
+import { colors, spacing, fontSize, fontWeight } from '@/constants/theme';
+import { APP_NAME, APP_VERSION } from '@/constants';
+import { SettingsScreenProps } from '@/types';
 
-const SettingsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
-  const { user, signOut, loading } = useAuthStore();
+const SettingsScreen: React.FC<SettingsScreenProps<'Settings'>> = () => {
+  const { user, signOut, loading } = useAuth();
   const [signingOut, setSigningOut] = useState(false);
 
   const handleSignOut = () => {
-    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
-      { text: 'Cancel', onPress: () => {} },
+    Alert.alert('Sign Out', 'Are you sure?', [
+      { text: 'Cancel', style: 'cancel' },
       {
         text: 'Sign Out',
+        style: 'destructive',
         onPress: async () => {
           setSigningOut(true);
           try {
             await signOut();
-          } catch (err) {
+          } catch {
             Alert.alert('Error', 'Failed to sign out');
           } finally {
             setSigningOut(false);
           }
         },
-        style: 'destructive',
       },
     ]);
   };
 
   return (
-    <Screen spacing>
+    <Screen scrollable>
       <Text style={styles.title}>Settings</Text>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Account</Text>
-        <View style={styles.infoBox}>
+      <Text style={styles.sectionLabel}>Account</Text>
+      <Card>
+        <View style={styles.row}>
           <Text style={styles.label}>Email</Text>
-          <Text style={styles.value}>{user?.email || 'N/A'}</Text>
+          <Text style={styles.value}>{user?.email || '—'}</Text>
         </View>
         {user?.name && (
-          <View style={styles.infoBox}>
+          <View style={[styles.row, styles.rowBorder]}>
             <Text style={styles.label}>Name</Text>
             <Text style={styles.value}>{user.name}</Text>
           </View>
         )}
-      </View>
+      </Card>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>App</Text>
-        <View style={styles.infoBox}>
-          <Text style={styles.label}>Version</Text>
-          <Text style={styles.value}>0.1.0</Text>
+      <Text style={styles.sectionLabel}>App</Text>
+      <Card>
+        <View style={styles.row}>
+          <Text style={styles.label}>Name</Text>
+          <Text style={styles.value}>{APP_NAME}</Text>
         </View>
-      </View>
+        <View style={[styles.row, styles.rowBorder]}>
+          <Text style={styles.label}>Version</Text>
+          <Text style={styles.value}>{APP_VERSION}</Text>
+        </View>
+      </Card>
 
-      <Button
-        title="Sign Out"
-        onPress={handleSignOut}
-        loading={signingOut || loading}
-        variant="danger"
-      />
+      <Button title="Sign Out" onPress={handleSignOut} loading={signingOut || loading} variant="danger" />
     </Screen>
   );
 };
 
 const styles = StyleSheet.create({
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1f2937',
-    marginBottom: 24,
+    fontSize: fontSize.xxl,
+    fontWeight: fontWeight.bold as '700',
+    color: colors.text,
+    marginBottom: spacing.xl,
   },
-  section: {
-    marginBottom: 32,
+  sectionLabel: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold as '600',
+    color: colors.textSecondary,
+    textTransform: 'uppercase',
+    marginBottom: spacing.sm,
+    marginTop: spacing.md,
+    letterSpacing: 0.5,
   },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1f2937',
-    marginBottom: 12,
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
   },
-  infoBox: {
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    backgroundColor: '#f3f4f6',
-    borderRadius: 6,
-    marginBottom: 8,
+  rowBorder: {
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
   },
   label: {
-    fontSize: 12,
-    color: '#6b7280',
-    fontWeight: '500',
-    marginBottom: 4,
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
   },
   value: {
-    fontSize: 16,
-    color: '#1f2937',
-    fontWeight: '500',
+    fontSize: fontSize.md,
+    color: colors.text,
+    fontWeight: fontWeight.medium as '500',
   },
 });
 

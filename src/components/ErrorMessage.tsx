@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { colors, radius, spacing, fontSize, fontWeight } from '@/constants/theme';
 
 interface ErrorMessageProps {
   message?: string | null;
@@ -13,7 +14,7 @@ const ErrorMessage: React.FC<ErrorMessageProps> = ({ message, onDismiss }) => {
     <View style={styles.container}>
       <Text style={styles.text}>{message}</Text>
       {onDismiss && (
-        <TouchableOpacity onPress={onDismiss}>
+        <TouchableOpacity onPress={onDismiss} hitSlop={8}>
           <Text style={styles.dismiss}>✕</Text>
         </TouchableOpacity>
       )}
@@ -23,26 +24,26 @@ const ErrorMessage: React.FC<ErrorMessageProps> = ({ message, onDismiss }) => {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#fee2e2',
+    backgroundColor: colors.errorBg,
     borderLeftWidth: 4,
-    borderLeftColor: '#dc2626',
-    padding: 12,
-    marginBottom: 16,
-    borderRadius: 4,
+    borderLeftColor: colors.danger,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
+    borderRadius: radius.sm,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   text: {
-    color: '#991b1b',
-    fontSize: 14,
+    color: colors.errorText,
+    fontSize: fontSize.sm,
     flex: 1,
   },
   dismiss: {
-    color: '#991b1b',
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginLeft: 12,
+    color: colors.errorText,
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.bold as '700',
+    marginLeft: spacing.md,
   },
 });
 

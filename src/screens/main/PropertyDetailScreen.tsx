@@ -1,10 +1,11 @@
-import React, { useCallback, useState } from 'react';
-import { View, FlatList, StyleSheet, Text, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import React, { useCallback } from 'react';
+import { View, FlatList, StyleSheet, Text, Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { usePropertyStore } from '@/store/propertyStore';
-import Screen from '@/components/Screen';
-import Button from '@/components/Button';
-import { Room } from '@/types';
+import { useProperties } from '@/hooks';
+import { Screen, Button, Card, Loading, EmptyState, ErrorMessage } from '@/components';
+import { colors, spacing, fontSize, fontWeight } from '@/constants/theme';
+import { formatArea, formatHeight } from '@/lib';
+import { Room, PropertiesScreenProps } from '@/types';
 
 const RoomCard: React.FC<{ room: Room; onPress: () => void; onDelete: () => void }> = ({
   room,
@@ -12,98 +13,102 @@ const RoomCard: React.FC<{ room: Room; onPress: () => void; onDelete: () => void
   onDelete,
 }) => {
   return (
-    <TouchableOpacity style={styles.card} onPress={onPress}>
-      <View style={styles.cardContent}>
-        <Text style={styles.cardTitle}>{room.name}</Text>
-        {room.description && <Text style={styles.cardSubtitle}>{room.description}</Text>}
-        {room.floor_area && (
-          <Text style={styles.cardMeta}>Floor Area: {room.floor_area.toFixed(0)} sq ft</Text>
-        )}
-        {room.ceiling_height && (
-          <Text style={styles.cardMeta}>Ceiling Height: {room.ceiling_height.toFixed(1)} ft</Text>
-        )}
-        {room.scan_completed && <Text style={styles.scannedBadge}>✓ Scanned</Text>}
+    <Card onPress={onPress}>
+      <View style={styles.roomRow}>
+        <View style={styles.roomContent}>
+          <Text style={styles.roomTitle}>{room.name}</Text>
+          {room.description && <Text style={styles.roomDesc}>{room.description}</Text>}
+          <View style={styles.metaRow}>
+            <Text style={styles.meta}>Area: {formatArea(room.floor_area)}</Text>
+            <Text style={styles.meta}>Ceiling: {formatHeight(room.ceiling_height)}</Text>
+          </View>
+          {room.scan_completed && <Text style={styles.scannedBadge}>✓ Scanned</Text>}
+        </View>
+        <Text style={styles.deleteIcon} onPress={onDelete}>
+          🗑
+        </Text>
       </View>
-      <TouchableOpacity onPress={onDelete} style={styles.deleteButton}>
-        <Text style={styles.deleteText}>🗑</Text>
-      </TouchableOpacity>
-    </TouchableOpacity>
+    </Card>
   );
 };
 
-const PropertyDetailScreen: React.FC<{ navigation: any; route: any }> = ({ navigation, route }) => {
+const PropertyDetailScreen: React.FC<PropertiesScreenProps<'PropertyDetail'>> = ({ navigation, route }) => {
   const { propertyId } = route.params;
-  const { currentProperty, rooms, loading, fetchProperty, fetchRooms, deleteRoom } = usePropertyStore();
-  const [deleting, setDeleting] = useState(false);
+  const { currentProperty, rooms, loading, error, fetchProperty, fetchRooms, deleteRoom, clearError } =
+    useProperties();
 
   useFocusEffect(
     useCallback(() => {
       fetchProperty(propertyId);
       fetchRooms(propertyId);
-    }, [propertyId])
+    }, [propertyId, fetchProperty, fetchRooms])
   );
 
   const handleDeleteRoom = (roomId: string) => {
     Alert.alert('Delete Room', 'Are you sure? This cannot be undone.', [
-      { text: 'Cancel', onPress: () => {} },
+      { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
-        onPress: async () => {
-          setDeleting(true);
-          await deleteRoom(roomId);
-          setDeleting(false);
-        },
+        onPress: () => deleteRoom(roomId),
         style: 'destructive',
       },
     ]);
   };
 
-  if (loading) {
-    return (
-      <Screen spacing>
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" />
-        </View>
-      </Screen>
-    );
-  }
-
   return (
-    <Screen spacing={false}>
+    <Screen padded={false}>
       {currentProperty && (
-        <View style={styles.propertyHeader}>
+        <View style={styles.header}>
           <Text style={styles.propertyName}>{currentProperty.name}</Text>
           {currentProperty.address && <Text style={styles.propertyAddress}>{currentProperty.address}</Text>}
+          {(currentProperty.city || currentProperty.state) && (
+            <Text style={styles.propertyAddress}>
+              {[currentProperty.city, currentProperty.state, currentProperty.zip].filter(Boolean).join(', ')}
+            </Text>
+          )}
         </View>
       )}
 
-      <View style={styles.sectionsContainer}>
+      <View style={styles.body}>
+        {error && <ErrorMessage message={error} onDismiss={clearError} />}
+
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Rooms ({rooms.length})</Text>
           <Button
             title="+ Room"
-            onPress={() => navigation.navigate('RoomDetail', { propertyId, isNew: true })}
-            variant="primary"
+            onPress={() =>
+              navigation.navigate('RoomDetail', { propertyId, isNew: true })
+            }
+            fullWidth={false}
           />
         </View>
 
-        {rooms.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No rooms added yet</Text>
-            <Text style={styles.emptySubtext}>Add your first room to begin scanning</Text>
-          </View>
+        {loading && rooms.length === 0 ? (
+          <Loading message="Loading rooms..." />
+        ) : rooms.length === 0 ? (
+          <EmptyState
+            icon="📐"
+            title="No rooms yet"
+            message="Add a room to start your inspection."
+            actionLabel="+ Add Room"
+            onAction={() =>
+              navigation.navigate('RoomDetail', { propertyId, isNew: true })
+            }
+          />
         ) : (
           <FlatList
             data={rooms}
             renderItem={({ item }) => (
               <RoomCard
                 room={item}
-                onPress={() => navigation.navigate('RoomDetail', { propertyId, roomId: item.id })}
+                onPress={() =>
+                  navigation.navigate('RoomDetail', { propertyId, roomId: item.id })
+                }
                 onDelete={() => handleDeleteRoom(item.id)}
               />
             )}
             keyExtractor={(item) => item.id}
-            scrollEnabled={false}
+            contentContainerStyle={styles.list}
           />
         )}
       </View>
@@ -112,99 +117,81 @@ const PropertyDetailScreen: React.FC<{ navigation: any; route: any }> = ({ navig
 };
 
 const styles = StyleSheet.create({
-  propertyHeader: {
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    backgroundColor: '#f3f4f6',
+  header: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg,
+    backgroundColor: colors.surfaceAlt,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: colors.border,
   },
   propertyName: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#1f2937',
-    marginBottom: 4,
+    fontSize: fontSize.xl,
+    fontWeight: fontWeight.bold as '700',
+    color: colors.text,
+    marginBottom: spacing.xs,
   },
   propertyAddress: {
-    fontSize: 14,
-    color: '#6b7280',
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
   },
-  sectionsContainer: {
+  body: {
     flex: 1,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 12,
-    gap: 12,
+    marginBottom: spacing.md,
+    gap: spacing.md,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1f2937',
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.semibold as '600',
+    color: colors.text,
   },
-  card: {
+  list: {
+    paddingBottom: spacing.lg,
+  },
+  roomRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    alignItems: 'flex-start',
   },
-  cardContent: {
+  roomContent: {
     flex: 1,
   },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1f2937',
-    marginBottom: 4,
+  roomTitle: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.semibold as '600',
+    color: colors.text,
+    marginBottom: spacing.xs,
   },
-  cardSubtitle: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginBottom: 2,
+  roomDesc: {
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
   },
-  cardMeta: {
-    fontSize: 13,
-    color: '#9ca3af',
+  metaRow: {
+    flexDirection: 'row',
+    gap: spacing.lg,
+    marginTop: spacing.xs,
+  },
+  meta: {
+    fontSize: fontSize.xs,
+    color: colors.textMuted,
   },
   scannedBadge: {
-    fontSize: 12,
-    color: '#059669',
-    marginTop: 4,
-    fontWeight: '600',
+    fontSize: fontSize.xs,
+    color: colors.success,
+    marginTop: spacing.sm,
+    fontWeight: fontWeight.semibold as '600',
   },
-  deleteButton: {
-    padding: 8,
-  },
-  deleteText: {
-    fontSize: 20,
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-  },
-  emptyText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1f2937',
-    marginBottom: 8,
-  },
-  emptySubtext: {
-    fontSize: 14,
-    color: '#6b7280',
+  deleteIcon: {
+    fontSize: fontSize.xl,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
   },
 });
 

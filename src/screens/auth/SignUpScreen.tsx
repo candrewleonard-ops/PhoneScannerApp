@@ -1,67 +1,52 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { useAuthStore } from '@/store/authStore';
-import Screen from '@/components/Screen';
-import TextInput from '@/components/TextInput';
-import Button from '@/components/Button';
-import ErrorMessage from '@/components/ErrorMessage';
+import { useAuth } from '@/hooks';
+import { Screen, TextInput, Button, ErrorMessage } from '@/components';
+import { colors, spacing, fontSize, fontWeight } from '@/constants/theme';
+import { isValidEmail, isValidPassword, isNonEmpty } from '@/lib';
+import { AuthScreenProps } from '@/types';
 
-const SignUpScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+const SignUpScreen: React.FC<AuthScreenProps<'SignUp'>> = ({ navigation }) => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const { signUp, loading, error, clearError } = useAuthStore();
   const [validationError, setValidationError] = useState('');
+  const { signUp, loading, error, clearError } = useAuth();
 
   const handleSignUp = async () => {
     setValidationError('');
-
-    if (!name || !email || !password || !confirmPassword) {
-      setValidationError('All fields are required');
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      setValidationError('Passwords do not match');
-      return;
-    }
-
-    if (password.length < 6) {
-      setValidationError('Password must be at least 6 characters');
-      return;
-    }
+    if (!isNonEmpty(name)) return setValidationError('Name is required');
+    if (!isValidEmail(email)) return setValidationError('Valid email is required');
+    if (!isValidPassword(password)) return setValidationError('Password must be at least 6 characters');
+    if (password !== confirmPassword) return setValidationError('Passwords do not match');
 
     try {
-      await signUp(email, password, name);
-    } catch (err) {
-      // Error handled in store
+      await signUp(email.trim(), password, name.trim());
+    } catch {
+      // handled in store
     }
   };
 
   return (
-    <Screen scrollable spacing>
+    <Screen scrollable>
       <View style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>Create Account</Text>
-          <Text style={styles.subtitle}>Join Reinnovation Scan</Text>
+          <Text style={styles.subtitle}>Start scanning properties</Text>
         </View>
 
         {(error || validationError) && (
           <ErrorMessage
             message={error || validationError}
-            onDismiss={clearError}
+            onDismiss={() => {
+              clearError();
+              setValidationError('');
+            }}
           />
         )}
 
-        <TextInput
-          label="Full Name"
-          placeholder="John Doe"
-          value={name}
-          onChangeText={setName}
-          editable={!loading}
-        />
-
+        <TextInput label="Full Name" placeholder="John Doe" value={name} onChangeText={setName} editable={!loading} />
         <TextInput
           label="Email"
           placeholder="your@email.com"
@@ -70,38 +55,28 @@ const SignUpScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           keyboardType="email-address"
           editable={!loading}
         />
-
         <TextInput
           label="Password"
-          placeholder="••••••••"
+          placeholder="At least 6 characters"
           value={password}
           onChangeText={setPassword}
           secureTextEntry
           editable={!loading}
         />
-
         <TextInput
           label="Confirm Password"
-          placeholder="••••••••"
+          placeholder="Re-enter password"
           value={confirmPassword}
           onChangeText={setConfirmPassword}
           secureTextEntry
           editable={!loading}
         />
 
-        <Button
-          title="Sign Up"
-          onPress={handleSignUp}
-          loading={loading}
-          disabled={!name || !email || !password || !confirmPassword}
-        />
+        <Button title="Create Account" onPress={handleSignUp} loading={loading} />
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>Already have an account? </Text>
-          <Text
-            style={styles.link}
-            onPress={() => navigation.navigate('Login')}
-          >
+          <Text style={styles.link} onPress={() => navigation.navigate('Login')}>
             Sign In
           </Text>
         </View>
@@ -116,32 +91,32 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   header: {
-    marginBottom: 32,
+    marginBottom: spacing.xxl,
     alignItems: 'center',
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#1f2937',
-    marginBottom: 8,
+    fontSize: fontSize.display,
+    fontWeight: fontWeight.bold as '700',
+    color: colors.text,
+    marginBottom: spacing.sm,
   },
   subtitle: {
-    fontSize: 14,
-    color: '#6b7280',
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
   },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 20,
+    marginTop: spacing.lg,
   },
   footerText: {
-    fontSize: 14,
-    color: '#6b7280',
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
   },
   link: {
-    fontSize: 14,
-    color: '#2563eb',
-    fontWeight: '600',
+    fontSize: fontSize.sm,
+    color: colors.primary,
+    fontWeight: fontWeight.semibold as '600',
   },
 });
 

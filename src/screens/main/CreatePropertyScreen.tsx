@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, Text } from 'react-native';
-import { useAuthStore } from '@/store/authStore';
-import { usePropertyStore } from '@/store/propertyStore';
-import Screen from '@/components/Screen';
-import TextInput from '@/components/TextInput';
-import Button from '@/components/Button';
-import ErrorMessage from '@/components/ErrorMessage';
+import { useAuth, useProperties } from '@/hooks';
+import { Screen, TextInput, Button, ErrorMessage } from '@/components';
+import { colors, spacing, fontSize, fontWeight } from '@/constants/theme';
+import { isNonEmpty } from '@/lib';
+import { PropertiesScreenProps } from '@/types';
 
-const CreatePropertyScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+const CreatePropertyScreen: React.FC<PropertiesScreenProps<'CreateProperty'>> = ({ navigation }) => {
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
   const [city, setCity] = useState('');
@@ -16,18 +15,19 @@ const CreatePropertyScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
   const [notes, setNotes] = useState('');
   const [validationError, setValidationError] = useState('');
 
-  const { user } = useAuthStore();
-  const { createProperty, loading, error, clearError } = usePropertyStore();
+  const { user } = useAuth();
+  const { createProperty, loading, error, clearError } = useProperties();
 
   const handleCreate = async () => {
     setValidationError('');
-
-    if (!name.trim()) {
+    if (!isNonEmpty(name)) {
       setValidationError('Property name is required');
       return;
     }
-
-    if (!user?.id) return;
+    if (!user?.id) {
+      setValidationError('You must be signed in');
+      return;
+    }
 
     const newProperty = await createProperty(user.id, {
       name: name.trim(),
@@ -44,103 +44,77 @@ const CreatePropertyScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
   };
 
   return (
-    <Screen scrollable spacing>
+    <Screen scrollable>
       {(error || validationError) && (
         <ErrorMessage
           message={error || validationError}
-          onDismiss={clearError}
+          onDismiss={() => {
+            clearError();
+            setValidationError('');
+          }}
         />
       )}
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Property Details</Text>
-        <TextInput
-          label="Property Name *"
-          placeholder="e.g., 123 Main St Flip"
-          value={name}
-          onChangeText={setName}
-          editable={!loading}
-        />
+      <Text style={styles.sectionTitle}>Property Details</Text>
 
-        <TextInput
-          label="Address"
-          placeholder="123 Main Street"
-          value={address}
-          onChangeText={setAddress}
-          editable={!loading}
-        />
+      <TextInput
+        label="Property Name *"
+        placeholder="e.g., 123 Main St Flip"
+        value={name}
+        onChangeText={setName}
+        editable={!loading}
+      />
+      <TextInput
+        label="Address"
+        placeholder="123 Main Street"
+        value={address}
+        onChangeText={setAddress}
+        editable={!loading}
+      />
+      <TextInput label="City" placeholder="City" value={city} onChangeText={setCity} editable={!loading} />
 
-        <TextInput
-          label="City"
-          placeholder="New York"
-          value={city}
-          onChangeText={setCity}
-          editable={!loading}
-        />
-
-        <View style={styles.row}>
-          <View style={styles.halfWidth}>
-            <TextInput
-              label="State"
-              placeholder="NY"
-              value={state}
-              onChangeText={setState}
-              editable={!loading}
-            />
-          </View>
-          <View style={styles.halfWidth}>
-            <TextInput
-              label="ZIP"
-              placeholder="10001"
-              value={zip}
-              onChangeText={setZip}
-              keyboardType="phone-pad"
-              editable={!loading}
-            />
-          </View>
+      <View style={styles.row}>
+        <View style={styles.halfWidth}>
+          <TextInput label="State" placeholder="ST" value={state} onChangeText={setState} editable={!loading} />
         </View>
-
-        <TextInput
-          label="Notes"
-          placeholder="Any initial observations..."
-          value={notes}
-          onChangeText={setNotes}
-          multiline
-          numberOfLines={4}
-          editable={!loading}
-        />
+        <View style={styles.halfWidth}>
+          <TextInput
+            label="ZIP"
+            placeholder="00000"
+            value={zip}
+            onChangeText={setZip}
+            keyboardType="phone-pad"
+            editable={!loading}
+          />
+        </View>
       </View>
 
-      <Button
-        title="Create Property"
-        onPress={handleCreate}
-        loading={loading}
-        disabled={!name.trim()}
+      <TextInput
+        label="Notes"
+        placeholder="Initial observations..."
+        value={notes}
+        onChangeText={setNotes}
+        multiline
+        numberOfLines={4}
+        editable={!loading}
       />
 
-      <Button
-        title="Cancel"
-        onPress={() => navigation.goBack()}
-        variant="secondary"
-        disabled={loading}
-      />
+      <Button title="Create Property" onPress={handleCreate} loading={loading} />
+      <Button title="Cancel" onPress={() => navigation.goBack()} variant="secondary" disabled={loading} />
     </Screen>
   );
 };
 
 const styles = StyleSheet.create({
-  section: {
-    marginBottom: 24,
-  },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1f2937',
-    marginBottom: 16,
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.semibold as '600',
+    color: colors.text,
+    marginBottom: spacing.lg,
   },
   row: {
     flexDirection: 'row',
-    gap: 16,
+    gap: spacing.lg,
   },
   halfWidth: {
     flex: 1,
