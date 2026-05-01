@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Property, Room } from '@/types';
+import { Property, PropertyInsert, PropertyUpdate, Room, RoomInsert, RoomUpdate } from '@/types';
 import * as supabaseService from '@/services/supabase';
 
 interface PropertyState {
@@ -13,12 +13,18 @@ interface PropertyState {
   fetchProperty: (id: string) => Promise<void>;
   fetchRooms: (propertyId: string) => Promise<void>;
 
-  createProperty: (userId: string, property: Omit<Property, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => Promise<Property | null>;
-  updateProperty: (id: string, updates: Partial<Property>) => Promise<void>;
+  createProperty: (
+    userId: string,
+    property: Omit<PropertyInsert, 'user_id'>
+  ) => Promise<Property | null>;
+  updateProperty: (id: string, updates: PropertyUpdate) => Promise<void>;
   deleteProperty: (id: string) => Promise<void>;
 
-  createRoom: (propertyId: string, room: Omit<Room, 'id' | 'property_id' | 'created_at' | 'updated_at'>) => Promise<Room | null>;
-  updateRoom: (id: string, updates: Partial<Room>) => Promise<void>;
+  createRoom: (
+    propertyId: string,
+    room: Omit<RoomInsert, 'property_id'>
+  ) => Promise<Room | null>;
+  updateRoom: (id: string, updates: RoomUpdate) => Promise<void>;
   deleteRoom: (id: string) => Promise<void>;
 
   clearError: () => void;
@@ -64,7 +70,7 @@ export const usePropertyStore = create<PropertyState>((set) => ({
     }
   },
 
-  createProperty: async (userId: string, property) => {
+  createProperty: async (userId, property) => {
     set({ loading: true, error: null });
     try {
       const { data, error } = await supabaseService.createProperty(userId, property);
@@ -80,7 +86,7 @@ export const usePropertyStore = create<PropertyState>((set) => ({
     }
   },
 
-  updateProperty: async (id: string, updates) => {
+  updateProperty: async (id, updates) => {
     set({ loading: true, error: null });
     try {
       const { data, error } = await supabaseService.updateProperty(id, updates);
@@ -97,7 +103,7 @@ export const usePropertyStore = create<PropertyState>((set) => ({
     }
   },
 
-  deleteProperty: async (id: string) => {
+  deleteProperty: async (id) => {
     set({ loading: true, error: null });
     try {
       const { error } = await supabaseService.deleteProperty(id);
@@ -112,7 +118,7 @@ export const usePropertyStore = create<PropertyState>((set) => ({
     }
   },
 
-  createRoom: async (propertyId: string, room) => {
+  createRoom: async (propertyId, room) => {
     set({ loading: true, error: null });
     try {
       const { data, error } = await supabaseService.createRoom(propertyId, room);
@@ -128,7 +134,7 @@ export const usePropertyStore = create<PropertyState>((set) => ({
     }
   },
 
-  updateRoom: async (id: string, updates) => {
+  updateRoom: async (id, updates) => {
     set({ loading: true, error: null });
     try {
       const { data, error } = await supabaseService.updateRoom(id, updates);
@@ -144,7 +150,7 @@ export const usePropertyStore = create<PropertyState>((set) => ({
     }
   },
 
-  deleteRoom: async (id: string) => {
+  deleteRoom: async (id) => {
     set({ loading: true, error: null });
     try {
       const { error } = await supabaseService.deleteRoom(id);

@@ -12,7 +12,6 @@ const CreatePropertyScreen: React.FC<PropertiesScreenProps<'CreateProperty'>> = 
   const [city, setCity] = useState('');
   const [state, setState] = useState('');
   const [zip, setZip] = useState('');
-  const [notes, setNotes] = useState('');
   const [validationError, setValidationError] = useState('');
 
   const { user } = useAuth();
@@ -31,11 +30,10 @@ const CreatePropertyScreen: React.FC<PropertiesScreenProps<'CreateProperty'>> = 
 
     const newProperty = await createProperty(user.id, {
       name: name.trim(),
-      address: address.trim() || undefined,
-      city: city.trim() || undefined,
-      state: state.trim() || undefined,
-      zip: zip.trim() || undefined,
-      notes: notes.trim() || undefined,
+      address: address.trim() || null,
+      city: city.trim() || null,
+      state: state.trim() || null,
+      zip: zip.trim() || null,
     });
 
     if (newProperty) {
@@ -88,16 +86,6 @@ const CreatePropertyScreen: React.FC<PropertiesScreenProps<'CreateProperty'>> = 
           />
         </View>
       </View>
-
-      <TextInput
-        label="Notes"
-        placeholder="Initial observations..."
-        value={notes}
-        onChangeText={setNotes}
-        multiline
-        numberOfLines={4}
-        editable={!loading}
-      />
 
       <Button title="Create Property" onPress={handleCreate} loading={loading} />
       <Button title="Cancel" onPress={() => navigation.goBack()} variant="secondary" disabled={loading} />

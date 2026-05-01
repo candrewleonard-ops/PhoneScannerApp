@@ -1,7 +1,7 @@
 import 'react-native-url-polyfill/auto';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
-import { Property, Room } from '@/types';
+import { Database, Property, PropertyInsert, PropertyUpdate, Room, RoomInsert, RoomUpdate } from '@/types';
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
@@ -12,7 +12,7 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
   );
 }
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
     storage: AsyncStorage,
     autoRefreshToken: true,
@@ -49,11 +49,11 @@ export async function getCurrentUser() {
 // ---------- Properties ----------
 export async function createProperty(
   userId: string,
-  property: Omit<Property, 'id' | 'user_id' | 'created_at' | 'updated_at'>
+  property: Omit<PropertyInsert, 'user_id'>
 ) {
   const { data, error } = await supabase
     .from('properties')
-    .insert([{ ...property, user_id: userId }])
+    .insert({ ...property, user_id: userId })
     .select()
     .single();
   return { data, error };
@@ -73,7 +73,7 @@ export async function getProperty(id: string) {
   return { data, error };
 }
 
-export async function updateProperty(id: string, updates: Partial<Property>) {
+export async function updateProperty(id: string, updates: PropertyUpdate) {
   const { data, error } = await supabase
     .from('properties')
     .update(updates)
@@ -91,11 +91,11 @@ export async function deleteProperty(id: string) {
 // ---------- Rooms ----------
 export async function createRoom(
   propertyId: string,
-  room: Omit<Room, 'id' | 'property_id' | 'created_at' | 'updated_at'>
+  room: Omit<RoomInsert, 'property_id'>
 ) {
   const { data, error } = await supabase
     .from('rooms')
-    .insert([{ ...room, property_id: propertyId }])
+    .insert({ ...room, property_id: propertyId })
     .select()
     .single();
   return { data, error };
@@ -115,7 +115,7 @@ export async function getRoom(id: string) {
   return { data, error };
 }
 
-export async function updateRoom(id: string, updates: Partial<Room>) {
+export async function updateRoom(id: string, updates: RoomUpdate) {
   const { data, error } = await supabase
     .from('rooms')
     .update(updates)

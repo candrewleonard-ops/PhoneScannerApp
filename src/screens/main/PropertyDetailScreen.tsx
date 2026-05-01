@@ -4,7 +4,6 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useProperties } from '@/hooks';
 import { Screen, Button, Card, Loading, EmptyState, ErrorMessage } from '@/components';
 import { colors, spacing, fontSize, fontWeight } from '@/constants/theme';
-import { formatArea, formatHeight } from '@/lib';
 import { Room, PropertiesScreenProps } from '@/types';
 
 const RoomCard: React.FC<{ room: Room; onPress: () => void; onDelete: () => void }> = ({
@@ -17,12 +16,12 @@ const RoomCard: React.FC<{ room: Room; onPress: () => void; onDelete: () => void
       <View style={styles.roomRow}>
         <View style={styles.roomContent}>
           <Text style={styles.roomTitle}>{room.name}</Text>
-          {room.description && <Text style={styles.roomDesc}>{room.description}</Text>}
-          <View style={styles.metaRow}>
-            <Text style={styles.meta}>Area: {formatArea(room.floor_area)}</Text>
-            <Text style={styles.meta}>Ceiling: {formatHeight(room.ceiling_height)}</Text>
-          </View>
-          {room.scan_completed && <Text style={styles.scannedBadge}>✓ Scanned</Text>}
+          {(room.floor_level || room.room_type) && (
+            <View style={styles.metaRow}>
+              {room.room_type && <Text style={styles.meta}>{room.room_type}</Text>}
+              {room.floor_level && <Text style={styles.meta}>Floor: {room.floor_level}</Text>}
+            </View>
+          )}
         </View>
         <Text style={styles.deleteIcon} onPress={onDelete}>
           🗑
@@ -168,11 +167,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: spacing.xs,
   },
-  roomDesc: {
-    fontSize: fontSize.sm,
-    color: colors.textSecondary,
-    marginBottom: spacing.xs,
-  },
   metaRow: {
     flexDirection: 'row',
     gap: spacing.lg,
@@ -181,12 +175,6 @@ const styles = StyleSheet.create({
   meta: {
     fontSize: fontSize.xs,
     color: colors.textMuted,
-  },
-  scannedBadge: {
-    fontSize: fontSize.xs,
-    color: colors.success,
-    marginTop: spacing.sm,
-    fontWeight: fontWeight.semibold as '600',
   },
   deleteIcon: {
     fontSize: fontSize.xl,

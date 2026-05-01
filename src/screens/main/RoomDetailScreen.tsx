@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Text } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { useProperties } from '@/hooks';
 import { Screen, TextInput, Button, ErrorMessage, Card } from '@/components';
 import { colors, spacing, fontSize, fontWeight } from '@/constants/theme';
@@ -9,7 +9,8 @@ import { PropertiesScreenProps } from '@/types';
 const RoomDetailScreen: React.FC<PropertiesScreenProps<'RoomDetail'>> = ({ navigation, route }) => {
   const { propertyId, roomId, isNew } = route.params;
   const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
+  const [roomType, setRoomType] = useState('');
+  const [floorLevel, setFloorLevel] = useState('');
   const [validationError, setValidationError] = useState('');
 
   const { createRoom, updateRoom, loading, error, clearError } = useProperties();
@@ -24,16 +25,15 @@ const RoomDetailScreen: React.FC<PropertiesScreenProps<'RoomDetail'>> = ({ navig
     if (isNew) {
       const newRoom = await createRoom(propertyId, {
         name: name.trim(),
-        description: description.trim() || undefined,
-        scan_completed: false,
+        room_type: roomType.trim() || null,
+        floor_level: floorLevel.trim() || null,
       });
-      if (newRoom) {
-        navigation.goBack();
-      }
+      if (newRoom) navigation.goBack();
     } else if (roomId) {
       await updateRoom(roomId, {
         name: name.trim(),
-        description: description.trim() || undefined,
+        room_type: roomType.trim() || null,
+        floor_level: floorLevel.trim() || null,
       });
       navigation.goBack();
     }
@@ -61,18 +61,23 @@ const RoomDetailScreen: React.FC<PropertiesScreenProps<'RoomDetail'>> = ({ navig
 
       <TextInput
         label="Room Name *"
-        placeholder="e.g., Master Bedroom, Kitchen"
+        placeholder="e.g., Master Bedroom"
         value={name}
         onChangeText={setName}
         editable={!loading}
       />
       <TextInput
-        label="Description"
-        placeholder="Notes about this room..."
-        value={description}
-        onChangeText={setDescription}
-        multiline
-        numberOfLines={3}
+        label="Room Type"
+        placeholder="bedroom, kitchen, bathroom..."
+        value={roomType}
+        onChangeText={setRoomType}
+        editable={!loading}
+      />
+      <TextInput
+        label="Floor Level"
+        placeholder="1st, 2nd, basement..."
+        value={floorLevel}
+        onChangeText={setFloorLevel}
         editable={!loading}
       />
 
@@ -80,11 +85,13 @@ const RoomDetailScreen: React.FC<PropertiesScreenProps<'RoomDetail'>> = ({ navig
 
       {!isNew && roomId && (
         <Card style={styles.scanCard}>
-          <Text style={styles.scanTitle}>Scan This Room</Text>
-          <Text style={styles.scanDesc}>
-            Use ARKit/RoomPlan to capture wall lengths, doors, windows, and ceiling height.
-          </Text>
-          <Button title="Open Scanner" onPress={handleScan} variant="outline" />
+          <View>
+            <Text style={styles.scanTitle}>Scan This Room</Text>
+            <Text style={styles.scanDesc}>
+              Capture wall lengths, doors, windows, and ceiling height with ARKit/RoomPlan.
+            </Text>
+            <Button title="Open Scanner" onPress={handleScan} variant="outline" />
+          </View>
         </Card>
       )}
 
