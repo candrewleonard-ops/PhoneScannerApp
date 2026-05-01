@@ -10,13 +10,13 @@ import { RootStackParamList } from '@/types';
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const RootNavigator: React.FC = () => {
-  const { user, loading, checkAuth } = useAuth();
+  const { user, initializing, checkAuth } = useAuth();
 
   useEffect(() => {
     checkAuth();
   }, [checkAuth]);
 
-  if (loading && !user) {
+  if (initializing) {
     return <Loading message="Starting up..." />;
   }
 

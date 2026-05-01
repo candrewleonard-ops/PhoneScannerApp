@@ -9,7 +9,6 @@ export type RootStackParamList = {
 
 export type AuthStackParamList = {
   Login: undefined;
-  SignUp: undefined;
 };
 
 export type MainTabParamList = {
@@ -21,8 +20,12 @@ export type PropertiesStackParamList = {
   Properties: undefined;
   PropertyDetail: { propertyId: string };
   CreateProperty: undefined;
-  RoomDetail: { propertyId: string; roomId?: string; isNew?: boolean };
+  CreateRoom: { propertyId: string };
+  RoomDetail: { propertyId: string; roomId: string };
   ScanRoom: { propertyId: string; roomId: string };
+  GuidedInspection: { propertyId: string; roomId: string };
+  RepairNotes: { propertyId: string; roomId: string };
+  ScopeItems: { propertyId: string; roomId: string };
 };
 
 export type SettingsStackParamList = {

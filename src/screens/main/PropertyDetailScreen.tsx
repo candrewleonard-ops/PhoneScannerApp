@@ -1,16 +1,13 @@
 import React, { useCallback } from 'react';
-import { View, FlatList, StyleSheet, Text, Alert } from 'react-native';
+import { View, FlatList, StyleSheet, Text } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useProperties } from '@/hooks';
 import { Screen, Button, Card, Loading, EmptyState, ErrorMessage } from '@/components';
 import { colors, spacing, fontSize, fontWeight } from '@/constants/theme';
+import { formatCurrency } from '@/lib';
 import { Room, PropertiesScreenProps } from '@/types';
 
-const RoomCard: React.FC<{ room: Room; onPress: () => void; onDelete: () => void }> = ({
-  room,
-  onPress,
-  onDelete,
-}) => {
+const RoomCard: React.FC<{ room: Room; onPress: () => void }> = ({ room, onPress }) => {
   return (
     <Card onPress={onPress}>
       <View style={styles.roomRow}>
@@ -23,9 +20,7 @@ const RoomCard: React.FC<{ room: Room; onPress: () => void; onDelete: () => void
             </View>
           )}
         </View>
-        <Text style={styles.deleteIcon} onPress={onDelete}>
-          🗑
-        </Text>
+        <Text style={styles.arrow}>›</Text>
       </View>
     </Card>
   );
@@ -33,8 +28,7 @@ const RoomCard: React.FC<{ room: Room; onPress: () => void; onDelete: () => void
 
 const PropertyDetailScreen: React.FC<PropertiesScreenProps<'PropertyDetail'>> = ({ navigation, route }) => {
   const { propertyId } = route.params;
-  const { currentProperty, rooms, loading, error, fetchProperty, fetchRooms, deleteRoom, clearError } =
-    useProperties();
+  const { currentProperty, rooms, loading, error, fetchProperty, fetchRooms, clearError } = useProperties();
 
   useFocusEffect(
     useCallback(() => {
@@ -43,16 +37,8 @@ const PropertyDetailScreen: React.FC<PropertiesScreenProps<'PropertyDetail'>> = 
     }, [propertyId, fetchProperty, fetchRooms])
   );
 
-  const handleDeleteRoom = (roomId: string) => {
-    Alert.alert('Delete Room', 'Are you sure? This cannot be undone.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        onPress: () => deleteRoom(roomId),
-        style: 'destructive',
-      },
-    ]);
-  };
+  // TODO: replace with sum of repair_items.total_cost once repair items service exists
+  const totalEstimatedCost: number | null = null;
 
   return (
     <Screen padded={false}>
@@ -60,7 +46,7 @@ const PropertyDetailScreen: React.FC<PropertiesScreenProps<'PropertyDetail'>> = 
         <View style={styles.header}>
           <Text style={styles.propertyName}>{currentProperty.name}</Text>
           {currentProperty.address && <Text style={styles.propertyAddress}>{currentProperty.address}</Text>}
-          {(currentProperty.city || currentProperty.state) && (
+          {(currentProperty.city || currentProperty.state || currentProperty.zip) && (
             <Text style={styles.propertyAddress}>
               {[currentProperty.city, currentProperty.state, currentProperty.zip].filter(Boolean).join(', ')}
             </Text>
@@ -71,13 +57,25 @@ const PropertyDetailScreen: React.FC<PropertiesScreenProps<'PropertyDetail'>> = 
       <View style={styles.body}>
         {error && <ErrorMessage message={error} onDismiss={clearError} />}
 
+        <View style={styles.summaryRow}>
+          <Card style={styles.summaryCard}>
+            <Text style={styles.summaryLabel}>Rooms</Text>
+            <Text style={styles.summaryValue}>{rooms.length}</Text>
+          </Card>
+          <Card style={styles.summaryCard}>
+            <Text style={styles.summaryLabel}>Estimated Repairs</Text>
+            <Text style={styles.summaryValue}>
+              {totalEstimatedCost !== null ? formatCurrency(totalEstimatedCost) : '—'}
+            </Text>
+            <Text style={styles.summaryHint}>Updates as scope items are added</Text>
+          </Card>
+        </View>
+
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Rooms ({rooms.length})</Text>
+          <Text style={styles.sectionTitle}>Rooms</Text>
           <Button
             title="+ Room"
-            onPress={() =>
-              navigation.navigate('RoomDetail', { propertyId, isNew: true })
-            }
+            onPress={() => navigation.navigate('CreateRoom', { propertyId })}
             fullWidth={false}
           />
         </View>
@@ -88,11 +86,9 @@ const PropertyDetailScreen: React.FC<PropertiesScreenProps<'PropertyDetail'>> = 
           <EmptyState
             icon="📐"
             title="No rooms yet"
-            message="Add a room to start your inspection."
+            message="Add a room to begin inspecting and scanning."
             actionLabel="+ Add Room"
-            onAction={() =>
-              navigation.navigate('RoomDetail', { propertyId, isNew: true })
-            }
+            onAction={() => navigation.navigate('CreateRoom', { propertyId })}
           />
         ) : (
           <FlatList
@@ -100,10 +96,7 @@ const PropertyDetailScreen: React.FC<PropertiesScreenProps<'PropertyDetail'>> = 
             renderItem={({ item }) => (
               <RoomCard
                 room={item}
-                onPress={() =>
-                  navigation.navigate('RoomDetail', { propertyId, roomId: item.id })
-                }
-                onDelete={() => handleDeleteRoom(item.id)}
+                onPress={() => navigation.navigate('RoomDetail', { propertyId, roomId: item.id })}
               />
             )}
             keyExtractor={(item) => item.id}
@@ -138,11 +131,39 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.lg,
   },
+  summaryRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    marginBottom: spacing.md,
+  },
+  summaryCard: {
+    flex: 1,
+    backgroundColor: colors.surface,
+  },
+  summaryLabel: {
+    fontSize: fontSize.xs,
+    color: colors.textSecondary,
+    fontWeight: fontWeight.semibold as '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: spacing.xs,
+  },
+  summaryValue: {
+    fontSize: fontSize.xl,
+    fontWeight: fontWeight.bold as '700',
+    color: colors.text,
+  },
+  summaryHint: {
+    fontSize: fontSize.xs,
+    color: colors.textMuted,
+    marginTop: spacing.xs,
+  },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: spacing.md,
+    marginTop: spacing.sm,
     gap: spacing.md,
   },
   sectionTitle: {
@@ -155,8 +176,8 @@ const styles = StyleSheet.create({
   },
   roomRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
   },
   roomContent: {
     flex: 1,
@@ -170,16 +191,15 @@ const styles = StyleSheet.create({
   metaRow: {
     flexDirection: 'row',
     gap: spacing.lg,
-    marginTop: spacing.xs,
   },
   meta: {
-    fontSize: fontSize.xs,
-    color: colors.textMuted,
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
   },
-  deleteIcon: {
-    fontSize: fontSize.xl,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
+  arrow: {
+    fontSize: fontSize.xxl,
+    color: colors.textMuted,
+    marginLeft: spacing.md,
   },
 });
 

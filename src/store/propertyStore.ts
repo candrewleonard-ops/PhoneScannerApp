@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { Property, PropertyInsert, PropertyUpdate, Room, RoomInsert, RoomUpdate } from '@/types';
-import * as supabaseService from '@/services/supabase';
+import { propertiesService, roomsService } from '@/services';
 
 interface PropertyState {
   properties: Property[];
@@ -37,10 +37,10 @@ export const usePropertyStore = create<PropertyState>((set) => ({
   loading: false,
   error: null,
 
-  fetchProperties: async (userId: string) => {
+  fetchProperties: async (userId) => {
     set({ loading: true, error: null });
     try {
-      const { data, error } = await supabaseService.getProperties(userId);
+      const { data, error } = await propertiesService.getProperties(userId);
       if (error) throw error;
       set({ properties: data || [], loading: false });
     } catch (err) {
@@ -48,10 +48,10 @@ export const usePropertyStore = create<PropertyState>((set) => ({
     }
   },
 
-  fetchProperty: async (id: string) => {
+  fetchProperty: async (id) => {
     set({ loading: true, error: null });
     try {
-      const { data, error } = await supabaseService.getProperty(id);
+      const { data, error } = await propertiesService.getPropertyById(id);
       if (error) throw error;
       set({ currentProperty: data, loading: false });
     } catch (err) {
@@ -59,10 +59,10 @@ export const usePropertyStore = create<PropertyState>((set) => ({
     }
   },
 
-  fetchRooms: async (propertyId: string) => {
+  fetchRooms: async (propertyId) => {
     set({ loading: true, error: null });
     try {
-      const { data, error } = await supabaseService.getRooms(propertyId);
+      const { data, error } = await roomsService.getRoomsForProperty(propertyId);
       if (error) throw error;
       set({ rooms: data || [], loading: false });
     } catch (err) {
@@ -73,12 +73,13 @@ export const usePropertyStore = create<PropertyState>((set) => ({
   createProperty: async (userId, property) => {
     set({ loading: true, error: null });
     try {
-      const { data, error } = await supabaseService.createProperty(userId, property);
+      const { data, error } = await propertiesService.createProperty(userId, property);
       if (error) throw error;
       if (data) {
         set((state) => ({ properties: [data, ...state.properties], loading: false }));
         return data;
       }
+      set({ loading: false });
       return null;
     } catch (err) {
       set({ error: (err as Error).message, loading: false });
@@ -89,7 +90,7 @@ export const usePropertyStore = create<PropertyState>((set) => ({
   updateProperty: async (id, updates) => {
     set({ loading: true, error: null });
     try {
-      const { data, error } = await supabaseService.updateProperty(id, updates);
+      const { data, error } = await propertiesService.updateProperty(id, updates);
       if (error) throw error;
       if (data) {
         set((state) => ({
@@ -106,7 +107,7 @@ export const usePropertyStore = create<PropertyState>((set) => ({
   deleteProperty: async (id) => {
     set({ loading: true, error: null });
     try {
-      const { error } = await supabaseService.deleteProperty(id);
+      const { error } = await propertiesService.deleteProperty(id);
       if (error) throw error;
       set((state) => ({
         properties: state.properties.filter((p) => p.id !== id),
@@ -121,12 +122,13 @@ export const usePropertyStore = create<PropertyState>((set) => ({
   createRoom: async (propertyId, room) => {
     set({ loading: true, error: null });
     try {
-      const { data, error } = await supabaseService.createRoom(propertyId, room);
+      const { data, error } = await roomsService.createRoom(propertyId, room);
       if (error) throw error;
       if (data) {
         set((state) => ({ rooms: [data, ...state.rooms], loading: false }));
         return data;
       }
+      set({ loading: false });
       return null;
     } catch (err) {
       set({ error: (err as Error).message, loading: false });
@@ -137,7 +139,7 @@ export const usePropertyStore = create<PropertyState>((set) => ({
   updateRoom: async (id, updates) => {
     set({ loading: true, error: null });
     try {
-      const { data, error } = await supabaseService.updateRoom(id, updates);
+      const { data, error } = await roomsService.updateRoom(id, updates);
       if (error) throw error;
       if (data) {
         set((state) => ({
@@ -153,7 +155,7 @@ export const usePropertyStore = create<PropertyState>((set) => ({
   deleteRoom: async (id) => {
     set({ loading: true, error: null });
     try {
-      const { error } = await supabaseService.deleteRoom(id);
+      const { error } = await roomsService.deleteRoom(id);
       if (error) throw error;
       set((state) => ({
         rooms: state.rooms.filter((r) => r.id !== id),

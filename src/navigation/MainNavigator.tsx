@@ -6,8 +6,12 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import PropertiesScreen from '@/screens/main/PropertiesScreen';
 import PropertyDetailScreen from '@/screens/main/PropertyDetailScreen';
 import CreatePropertyScreen from '@/screens/main/CreatePropertyScreen';
+import CreateRoomScreen from '@/screens/main/CreateRoomScreen';
 import RoomDetailScreen from '@/screens/main/RoomDetailScreen';
 import ScanRoomScreen from '@/screens/main/ScanRoomScreen';
+import GuidedInspectionScreen from '@/screens/main/GuidedInspectionScreen';
+import RepairNotesScreen from '@/screens/main/RepairNotesScreen';
+import ScopeItemsScreen from '@/screens/main/ScopeItemsScreen';
 import SettingsScreen from '@/screens/main/SettingsScreen';
 
 import { colors } from '@/constants/theme';
@@ -32,10 +36,38 @@ const PropertiesStackNavigator: React.FC = () => (
     <PropertiesStack.Screen
       name="CreateProperty"
       component={CreatePropertyScreen}
-      options={{ title: 'New Property' }}
+      options={{ title: 'New Property', presentation: 'modal' }}
     />
-    <PropertiesStack.Screen name="RoomDetail" component={RoomDetailScreen} options={{ title: 'Room' }} />
-    <PropertiesStack.Screen name="ScanRoom" component={ScanRoomScreen} options={{ title: 'Scan Room' }} />
+    <PropertiesStack.Screen
+      name="CreateRoom"
+      component={CreateRoomScreen}
+      options={{ title: 'New Room', presentation: 'modal' }}
+    />
+    <PropertiesStack.Screen
+      name="RoomDetail"
+      component={RoomDetailScreen}
+      options={{ title: 'Room' }}
+    />
+    <PropertiesStack.Screen
+      name="ScanRoom"
+      component={ScanRoomScreen}
+      options={{ title: 'Scan Room' }}
+    />
+    <PropertiesStack.Screen
+      name="GuidedInspection"
+      component={GuidedInspectionScreen}
+      options={{ title: 'Inspection' }}
+    />
+    <PropertiesStack.Screen
+      name="RepairNotes"
+      component={RepairNotesScreen}
+      options={{ title: 'Repair Notes' }}
+    />
+    <PropertiesStack.Screen
+      name="ScopeItems"
+      component={ScopeItemsScreen}
+      options={{ title: 'Scope Items' }}
+    />
   </PropertiesStack.Navigator>
 );
 

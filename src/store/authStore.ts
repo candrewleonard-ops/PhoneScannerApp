@@ -1,13 +1,14 @@
 import { create } from 'zustand';
 import { User } from '@/types';
-import * as supabaseService from '@/services/supabase';
+import { authService } from '@/services';
 
 interface AuthState {
   user: User | null;
   loading: boolean;
+  initializing: boolean;
   error: string | null;
-  signUp: (email: string, password: string, name: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string, name: string) => Promise<void>;
   signOut: () => Promise<void>;
   checkAuth: () => Promise<void>;
   clearError: () => void;
@@ -16,26 +17,13 @@ interface AuthState {
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   loading: false,
+  initializing: true,
   error: null,
 
-  signUp: async (email: string, password: string, name: string) => {
+  signIn: async (email, password) => {
     set({ loading: true, error: null });
     try {
-      const { data, error } = await supabaseService.signUp(email, password, name);
-      if (error) throw error;
-      if (data?.user) {
-        set({ user: { id: data.user.id, email: data.user.email || '', name } as User, loading: false });
-      }
-    } catch (err) {
-      set({ error: (err as Error).message, loading: false });
-      throw err;
-    }
-  },
-
-  signIn: async (email: string, password: string) => {
-    set({ loading: true, error: null });
-    try {
-      const { data, error } = await supabaseService.signIn(email, password);
+      const { data, error } = await authService.signInWithEmail(email, password);
       if (error) throw error;
       if (data?.user) {
         set({
@@ -43,9 +31,34 @@ export const useAuthStore = create<AuthState>((set) => ({
             id: data.user.id,
             email: data.user.email || '',
             name: data.user.user_metadata?.name,
-          } as User,
+          },
           loading: false,
         });
+      } else {
+        set({ loading: false });
+      }
+    } catch (err) {
+      set({ error: (err as Error).message, loading: false });
+      throw err;
+    }
+  },
+
+  signUp: async (email, password, name) => {
+    set({ loading: true, error: null });
+    try {
+      const { data, error } = await authService.signUpWithEmail(email, password, name);
+      if (error) throw error;
+      if (data?.user) {
+        set({
+          user: {
+            id: data.user.id,
+            email: data.user.email || '',
+            name,
+          },
+          loading: false,
+        });
+      } else {
+        set({ loading: false });
       }
     } catch (err) {
       set({ error: (err as Error).message, loading: false });
@@ -56,7 +69,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   signOut: async () => {
     set({ loading: true, error: null });
     try {
-      const { error } = await supabaseService.signOut();
+      const { error } = await authService.signOut();
       if (error) throw error;
       set({ user: null, loading: false });
     } catch (err) {
@@ -66,9 +79,9 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   checkAuth: async () => {
-    set({ loading: true });
+    set({ initializing: true });
     try {
-      const { user, error } = await supabaseService.getCurrentUser();
+      const { user, error } = await authService.getCurrentUser();
       if (error) throw error;
       if (user) {
         set({
@@ -76,15 +89,15 @@ export const useAuthStore = create<AuthState>((set) => ({
             id: user.id,
             email: user.email || '',
             name: user.user_metadata?.name,
-          } as User,
-          loading: false,
+          },
+          initializing: false,
         });
       } else {
-        set({ user: null, loading: false });
+        set({ user: null, initializing: false });
       }
     } catch (err) {
-      console.error('Auth check failed:', err);
-      set({ user: null, loading: false });
+      console.warn('Auth check failed:', err);
+      set({ user: null, initializing: false });
     }
   },
 
