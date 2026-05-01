@@ -6,8 +6,15 @@
     "scheme": "reinnovationscan",
     "assetBundlePatterns": ["**/*"],
     "ios": {
-      "supportsTabletMode": true,
-      "bundleIdentifier": "com.reinnovation.scan"
+      "supportsTablet": true,
+      "bundleIdentifier": "com.reinnovation.scan",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Reinnovation Scan uses the camera to scan rooms with ARKit/RoomPlan and capture inspection photos.",
+        "NSPhotoLibraryUsageDescription": "Reinnovation Scan saves scan photos and 3D models to your photo library if you choose to export them.",
+        "NSPhotoLibraryAddUsageDescription": "Reinnovation Scan needs to save scan photos and exported models to your photo library.",
+        "NSLocationWhenInUseUsageDescription": "Reinnovation Scan optionally uses location to associate scans with property addresses.",
+        "UIRequiredDeviceCapabilities": ["arkit"]
+      }
     },
     "android": {
       "package": "com.reinnovation.scan",
@@ -25,9 +32,14 @@
       "backgroundColor": "#ffffff"
     },
     "plugins": [
+      ["expo-dev-client", {}],
       [
-        "expo-dev-client",
-        {}
+        "expo-build-properties",
+        {
+          "ios": {
+            "deploymentTarget": "16.0"
+          }
+        }
       ]
     ],
     "owner": "reinnovation"

@@ -1,8 +1,14 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, Text, Alert } from 'react-native';
-import { Screen, Button, Card } from '@/components';
+import { Screen, Button, Card, ErrorMessage } from '@/components';
 import { colors, spacing, fontSize, fontWeight } from '@/constants/theme';
 import { PropertiesScreenProps } from '@/types';
+import {
+  isRoomPlanSupported,
+  startRoomScan,
+  RoomPlanError,
+  RoomScanResult,
+} from '@/native/RoomPlanScanner';
 
 const Step: React.FC<{ index: number; title: string; body: string }> = ({ index, title, body }) => (
   <View style={styles.step}>
@@ -16,12 +22,50 @@ const Step: React.FC<{ index: number; title: string; body: string }> = ({ index,
   </View>
 );
 
-const ScanRoomScreen: React.FC<PropertiesScreenProps<'ScanRoom'>> = ({ navigation }) => {
-  const handleStart = () => {
-    Alert.alert(
-      'Scanner not yet implemented',
-      'The native ARKit/RoomPlan module ships in Phase 3. For now, this is a placeholder.'
-    );
+const ScanRoomScreen: React.FC<PropertiesScreenProps<'ScanRoom'>> = ({ navigation, route }) => {
+  const { roomId } = route.params;
+  const [supported, setSupported] = useState<boolean | null>(null);
+  const [scanning, setScanning] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    isRoomPlanSupported().then((value) => {
+      if (!cancelled) setSupported(value);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleStart = async () => {
+    setError(null);
+    setScanning(true);
+    try {
+      const result: RoomScanResult = await startRoomScan(roomId);
+      Alert.alert(
+        'Scan complete',
+        `Walls: ${result.summary.wallsCount}\n` +
+          `Openings: ${result.summary.openingsCount}\n` +
+          `Objects: ${result.summary.objectsCount}\n` +
+          `Ceiling: ${
+            result.summary.estimatedCeilingHeight
+              ? `${result.summary.estimatedCeilingHeight.toFixed(2)} m`
+              : 'unknown'
+          }`,
+        [{ text: 'OK', onPress: () => navigation.goBack() }]
+      );
+      // TODO(phase-4): persist result via scansService.saveRoomScanStructure()
+    } catch (err) {
+      if (err instanceof RoomPlanError && err.code === 'E_SCAN_CANCELLED') {
+        // user backed out — no-op
+      } else {
+        const message = err instanceof Error ? err.message : 'Scan failed';
+        setError(message);
+      }
+    } finally {
+      setScanning(false);
+    }
   };
 
   return (
@@ -32,6 +76,8 @@ const ScanRoomScreen: React.FC<PropertiesScreenProps<'ScanRoom'>> = ({ navigatio
 
       <Text style={styles.title}>AR Room Scan</Text>
       <Text style={styles.subtitle}>Capture wall geometry, openings, and ceiling height with iPhone LiDAR.</Text>
+
+      {error && <ErrorMessage message={error} onDismiss={() => setError(null)} />}
 
       <Card style={styles.card}>
         <Text style={styles.cardTitle}>How it works</Text>
@@ -52,8 +98,8 @@ const ScanRoomScreen: React.FC<PropertiesScreenProps<'ScanRoom'>> = ({ navigatio
         />
         <Step
           index={4}
-          title="Stop when the scan is complete"
-          body="The scanner will indicate when each surface has been captured."
+          title="Tap Done when complete"
+          body="The scanner will process and return geometry to the app."
         />
       </Card>
 
@@ -61,11 +107,25 @@ const ScanRoomScreen: React.FC<PropertiesScreenProps<'ScanRoom'>> = ({ navigatio
         <Text style={styles.tipTitle}>Before you start</Text>
         <Text style={styles.tipText}>• Open all doors and clear floor obstructions</Text>
         <Text style={styles.tipText}>• Make sure the room is well lit</Text>
-        <Text style={styles.tipText}>• Requires iPhone Pro / Pro Max with LiDAR</Text>
+        <Text style={styles.tipText}>• Requires iPhone Pro / Pro Max with LiDAR (iOS 16+)</Text>
       </Card>
 
-      <Button title="Start Scan" onPress={handleStart} />
-      <Button title="Back" onPress={() => navigation.goBack()} variant="secondary" />
+      {supported === false && (
+        <Card style={styles.warningCard}>
+          <Text style={styles.warningText}>
+            This device does not support RoomPlan. You need an iPhone or iPad with a LiDAR scanner running
+            iOS 16 or newer.
+          </Text>
+        </Card>
+      )}
+
+      <Button
+        title={scanning ? 'Launching scanner...' : 'Start Scan'}
+        onPress={handleStart}
+        loading={scanning}
+        disabled={supported === false}
+      />
+      <Button title="Back" onPress={() => navigation.goBack()} variant="secondary" disabled={scanning} />
     </Screen>
   );
 };
@@ -145,6 +205,14 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     color: colors.warningText,
     marginBottom: spacing.xs,
+  },
+  warningCard: {
+    backgroundColor: colors.errorBg,
+    borderColor: colors.errorBg,
+  },
+  warningText: {
+    fontSize: fontSize.sm,
+    color: colors.errorText,
   },
 });
 

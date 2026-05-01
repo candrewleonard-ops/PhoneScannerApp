@@ -1,0 +1,8 @@
+{
+  "name": "expo-room-plan-scanner",
+  "version": "0.1.0",
+  "description": "Native iOS RoomPlan / ARKit scanner exposed to React Native via Expo Modules.",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "private": true
+}
