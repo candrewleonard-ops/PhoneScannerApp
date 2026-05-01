@@ -5,11 +5,21 @@ import UIKit
 import RoomPlan
 #endif
 
-public class ExpoRoomPlanScannerModule: Module {
+/// Expo Module bridge that exposes Apple's RoomPlan scanner to React Native.
+///
+/// JS-facing API (see `modules/expo-room-plan-scanner/src/types.ts`):
+///   - isRoomPlanSupported(): Promise<boolean>
+///   - startRoomScan(roomId: string): Promise<RoomScanResult>
+///
+/// All scanner functionality requires iOS 16.0+ and a LiDAR-equipped device.
+/// The module is built with availability + canImport guards so it compiles
+/// on older SDKs and gracefully reports `E_UNSUPPORTED_OS` /
+/// `E_UNSUPPORTED_DEVICE` at runtime.
+public class RoomPlanScanner: Module {
   public func definition() -> ModuleDefinition {
+    // Name JS uses: requireNativeModule('ExpoRoomPlanScanner')
     Name("ExpoRoomPlanScanner")
 
-    // Returns true only when the device supports RoomPlan (LiDAR + iOS 16+).
     AsyncFunction("isRoomPlanSupported") { () -> Bool in
       if #available(iOS 16.0, *) {
         #if canImport(RoomPlan)
@@ -21,7 +31,6 @@ public class ExpoRoomPlanScannerModule: Module {
       return false
     }
 
-    // Presents the RoomPlan scanner UI modally and resolves with the captured result.
     AsyncFunction("startRoomScan") { (roomId: String, promise: Promise) in
       DispatchQueue.main.async {
         guard #available(iOS 16.0, *) else {
@@ -43,7 +52,7 @@ public class ExpoRoomPlanScannerModule: Module {
           return
         }
 
-        let scannerVC = RoomScannerViewController(roomId: roomId) { result in
+        let scannerVC = RoomCaptureViewController(roomId: roomId) { result in
           presenter.dismiss(animated: true) {
             switch result {
             case .success(let payload):
@@ -65,14 +74,15 @@ public class ExpoRoomPlanScannerModule: Module {
   }
 
   /// Walks the active scene to find the top-most view controller suitable for presentation.
+  /// Uses the modern UIScene API (avoids deprecated `UIApplication.shared.windows`).
   private static func topMostViewController() -> UIViewController? {
     let scenes = UIApplication.shared.connectedScenes
       .compactMap { $0 as? UIWindowScene }
       .filter { $0.activationState == .foregroundActive }
 
     let keyWindow = scenes
-      .flatMap { $0.windows }
-      .first { $0.isKeyWindow } ?? scenes.first?.windows.first
+      .flatMap(\.windows)
+      .first(where: \.isKeyWindow) ?? scenes.first?.windows.first
 
     var topVC = keyWindow?.rootViewController
     while let presented = topVC?.presentedViewController {

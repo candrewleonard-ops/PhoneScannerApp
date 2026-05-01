@@ -12,6 +12,8 @@ export interface RoomScanSummary {
 }
 
 export interface RoomScanResult {
+  /** The roomId originally passed into startRoomScan(). Echoed back for correlation. */
+  roomId: string;
   /** Absolute path to the JSON dump of the CapturedRoom (always present on success). */
   localJsonPath: string;
   /** Absolute path to a USDZ export of the room. Null if export failed. */

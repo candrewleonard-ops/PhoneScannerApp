@@ -4,23 +4,31 @@ import UIKit
 import RoomPlan
 import ARKit
 
-/// Presents the RoomPlan capture UI and returns a serialized result via a completion handler.
+/// Hosts Apple's `RoomCaptureView` and returns a serialized result via a completion handler.
 ///
 /// Result dictionary shape (matches the JS `RoomScanResult` type):
 ///   {
+///     roomId: String,
 ///     localJsonPath: String,
-///     localModelPath: String?,        // .usdz, may be null if export failed
-///     rawJson: [String: Any]?,        // full CapturedRoom JSON
+///     localModelPath: String?,           // .usdz, may be null if export failed
+///     rawJson: [String: Any]?,           // full CapturedRoom JSON
 ///     summary: {
 ///       wallsCount: Int,
-///       openingsCount: Int,           // doors + windows + openings
+///       openingsCount: Int,              // doors + windows + openings
 ///       objectsCount: Int,
-///       estimatedFloorArea: Double?,  // meters^2; rough bounding-box estimate
-///       estimatedCeilingHeight: Double? // meters; median wall height
+///       estimatedFloorArea: Double?,     // m^2; rough bounding-box estimate
+///       estimatedCeilingHeight: Double?  // m; median wall height
 ///     }
 ///   }
+///
+/// Lifecycle:
+///   viewDidLoad     -> build UI
+///   viewDidAppear   -> session.run(...)
+///   user taps Done  -> session.stop() (triggers RoomCaptureViewDelegate processing)
+///   delegate done   -> build result dict, invoke completion(.success)
+///   user taps Cancel-> session.stop() and completion(.failure(E_SCAN_CANCELLED))
 @available(iOS 16.0, *)
-final class RoomScannerViewController: UIViewController, RoomCaptureViewDelegate, RoomCaptureSessionDelegate {
+final class RoomCaptureViewController: UIViewController, RoomCaptureViewDelegate, RoomCaptureSessionDelegate {
 
   // MARK: - Public API
 
@@ -43,6 +51,9 @@ final class RoomScannerViewController: UIViewController, RoomCaptureViewDelegate
   private var captureView: RoomCaptureView!
   private var sessionConfig = RoomCaptureSession.Configuration()
   private var didFinish = false
+  private var statusLabel: UILabel!
+  private var doneButton: UIButton!
+  private var processingOverlay: UIView!
 
   // MARK: - Lifecycle
 
@@ -51,6 +62,7 @@ final class RoomScannerViewController: UIViewController, RoomCaptureViewDelegate
     view.backgroundColor = .black
     setupCaptureView()
     setupControls()
+    setupProcessingOverlay()
   }
 
   override func viewDidAppear(_ animated: Bool) {
@@ -63,7 +75,7 @@ final class RoomScannerViewController: UIViewController, RoomCaptureViewDelegate
     captureView.captureSession.stop()
   }
 
-  // MARK: - Setup
+  // MARK: - View setup
 
   private func setupCaptureView() {
     captureView = RoomCaptureView(frame: view.bounds)
@@ -82,15 +94,34 @@ final class RoomScannerViewController: UIViewController, RoomCaptureViewDelegate
 
   private func setupControls() {
     let cancelButton = makeButton(title: "Cancel", weight: .medium, action: #selector(handleCancel))
-    let doneButton = makeButton(title: "Done", weight: .semibold, action: #selector(handleDone))
+    doneButton = makeButton(title: "Done", weight: .semibold, action: #selector(handleDone))
+
+    statusLabel = UILabel()
+    statusLabel.text = "Move slowly to scan walls, doors, and windows"
+    statusLabel.textColor = .white
+    statusLabel.font = .systemFont(ofSize: 14, weight: .medium)
+    statusLabel.numberOfLines = 0
+    statusLabel.textAlignment = .center
+    statusLabel.translatesAutoresizingMaskIntoConstraints = false
+    statusLabel.backgroundColor = UIColor.black.withAlphaComponent(0.55)
+    statusLabel.layer.cornerRadius = 6
+    statusLabel.layer.masksToBounds = true
+    statusLabel.adjustsFontSizeToFitWidth = true
+    statusLabel.minimumScaleFactor = 0.8
+
     view.addSubview(cancelButton)
     view.addSubview(doneButton)
+    view.addSubview(statusLabel)
 
     NSLayoutConstraint.activate([
       cancelButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 12),
       cancelButton.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 16),
       doneButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 12),
       doneButton.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -16),
+      statusLabel.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -24),
+      statusLabel.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 24),
+      statusLabel.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -24),
+      statusLabel.heightAnchor.constraint(greaterThanOrEqualToConstant: 36),
     ])
   }
 
@@ -101,10 +132,43 @@ final class RoomScannerViewController: UIViewController, RoomCaptureViewDelegate
     button.titleLabel?.font = .systemFont(ofSize: 17, weight: weight)
     button.translatesAutoresizingMaskIntoConstraints = false
     button.addTarget(self, action: action, for: .touchUpInside)
-    button.contentEdgeInsets = UIEdgeInsets(top: 6, left: 12, bottom: 6, right: 12)
-    button.backgroundColor = UIColor.black.withAlphaComponent(0.4)
-    button.layer.cornerRadius = 6
+    button.contentEdgeInsets = UIEdgeInsets(top: 8, left: 14, bottom: 8, right: 14)
+    button.backgroundColor = UIColor.black.withAlphaComponent(0.45)
+    button.layer.cornerRadius = 8
     return button
+  }
+
+  private func setupProcessingOverlay() {
+    processingOverlay = UIView()
+    processingOverlay.backgroundColor = UIColor.black.withAlphaComponent(0.65)
+    processingOverlay.translatesAutoresizingMaskIntoConstraints = false
+    processingOverlay.isHidden = true
+
+    let spinner = UIActivityIndicatorView(style: .large)
+    spinner.color = .white
+    spinner.startAnimating()
+    spinner.translatesAutoresizingMaskIntoConstraints = false
+
+    let label = UILabel()
+    label.text = "Processing scan…"
+    label.textColor = .white
+    label.font = .systemFont(ofSize: 16, weight: .medium)
+    label.translatesAutoresizingMaskIntoConstraints = false
+
+    processingOverlay.addSubview(spinner)
+    processingOverlay.addSubview(label)
+    view.addSubview(processingOverlay)
+
+    NSLayoutConstraint.activate([
+      processingOverlay.topAnchor.constraint(equalTo: view.topAnchor),
+      processingOverlay.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+      processingOverlay.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+      processingOverlay.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+      spinner.centerXAnchor.constraint(equalTo: processingOverlay.centerXAnchor),
+      spinner.centerYAnchor.constraint(equalTo: processingOverlay.centerYAnchor, constant: -16),
+      label.topAnchor.constraint(equalTo: spinner.bottomAnchor, constant: 12),
+      label.centerXAnchor.constraint(equalTo: processingOverlay.centerXAnchor),
+    ])
   }
 
   // MARK: - Actions
@@ -115,11 +179,28 @@ final class RoomScannerViewController: UIViewController, RoomCaptureViewDelegate
   }
 
   @objc private func handleDone() {
-    // Triggers RoomCaptureViewDelegate callbacks once processing is complete.
+    // Stopping the session triggers RoomCaptureViewDelegate processing callbacks.
+    doneButton.isEnabled = false
+    statusLabel.text = "Finalizing scan…"
+    processingOverlay.isHidden = false
     captureView.captureSession.stop()
   }
 
-  // MARK: - RoomCaptureViewDelegate
+  // MARK: - RoomCaptureSessionDelegate (live updates)
+
+  func captureSession(_ session: RoomCaptureSession, didUpdate room: CapturedRoom) {
+    // Lightweight live progress text — RoomCaptureView itself draws the AR overlay.
+    let walls = room.walls.count
+    let openings = room.doors.count + room.windows.count + room.openings.count
+    let objects = room.objects.count
+    statusLabel.text = "Walls \(walls)  ·  Openings \(openings)  ·  Objects \(objects)"
+  }
+
+  func captureSession(_ session: RoomCaptureSession, didFailWith error: Error) {
+    finish(.failure(error))
+  }
+
+  // MARK: - RoomCaptureViewDelegate (post-processing)
 
   func captureView(shouldPresent roomDataForProcessing: CapturedRoomData, error: Error?) -> Bool {
     if let error = error {
@@ -148,14 +229,14 @@ final class RoomScannerViewController: UIViewController, RoomCaptureViewDelegate
     let outputDir = try ensureOutputDirectory()
     let timestamp = Int(Date().timeIntervalSince1970)
 
-    // Encode CapturedRoom (Codable) to JSON and save.
+    // 1. Encode CapturedRoom (Codable on iOS 16+) to JSON and save to disk.
     let encoder = JSONEncoder()
     encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
     let jsonData = try encoder.encode(room)
     let jsonURL = outputDir.appendingPathComponent("scan-\(timestamp).json")
     try jsonData.write(to: jsonURL, options: .atomic)
 
-    // Try to export a USDZ model. Failure here is non-fatal.
+    // 2. Best-effort USDZ export. Failure is non-fatal — JSON is the source of truth.
     var modelPath: String? = nil
     let modelURL = outputDir.appendingPathComponent("scan-\(timestamp).usdz")
     do {
@@ -165,8 +246,10 @@ final class RoomScannerViewController: UIViewController, RoomCaptureViewDelegate
       NSLog("[RoomPlanScanner] USDZ export failed: \(error.localizedDescription)")
     }
 
+    // 3. Re-parse JSON for pass-through to JS (Foundation can encode it back to RN bridge).
     let rawJson = (try? JSONSerialization.jsonObject(with: jsonData, options: [])) as? [String: Any]
 
+    // 4. Compute summary.
     let openingsCount = room.openings.count + room.doors.count + room.windows.count
     let summary: [String: Any] = [
       "wallsCount": room.walls.count,
@@ -177,6 +260,7 @@ final class RoomScannerViewController: UIViewController, RoomCaptureViewDelegate
     ]
 
     return [
+      "roomId": roomId,
       "localJsonPath": jsonURL.path,
       "localModelPath": modelPath ?? NSNull(),
       "rawJson": rawJson ?? NSNull(),
@@ -196,17 +280,17 @@ final class RoomScannerViewController: UIViewController, RoomCaptureViewDelegate
     return dir
   }
 
-  /// Median wall height (Y dimension) in meters — a reasonable proxy for ceiling height.
+  /// Median wall height (Y dimension), in meters. A reasonable proxy for ceiling height.
   private func estimateCeilingHeight(walls: [CapturedRoom.Surface]) -> Double? {
     let heights = walls.map { Double($0.dimensions.y) }.sorted()
     guard !heights.isEmpty else { return nil }
     return heights[heights.count / 2]
   }
 
-  /// Rough axis-aligned bounding-box floor area, in meters². The Phase 4 parsing layer
-  /// can produce a much better polygon-area estimate from `rawJson`.
-  /// TODO(phase-4): replace with shoelace formula on RoomPlan floor polygon (iOS 17+) or
-  /// computed wall corners (iOS 16).
+  /// Rough axis-aligned bounding-box floor area, in m². RoomPlan does not expose a
+  /// floor polygon directly (walls/doors/windows/openings/objects only), so we derive
+  /// extents from wall transforms. Phase 4 parsing of `rawJson` can refine this with
+  /// a polygon (shoelace) area computed from wall corners.
   private func estimateFloorArea(walls: [CapturedRoom.Surface]) -> Double? {
     guard !walls.isEmpty else { return nil }
     var minX: Float = .greatestFiniteMagnitude
@@ -239,7 +323,7 @@ final class RoomScannerViewController: UIViewController, RoomCaptureViewDelegate
 
   private func makeError(code: String, message: String) -> NSError {
     NSError(
-      domain: "ExpoRoomPlanScanner",
+      domain: "RoomPlanScanner",
       code: 0,
       userInfo: [
         NSLocalizedDescriptionKey: message,

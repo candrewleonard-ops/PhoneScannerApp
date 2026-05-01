@@ -66,11 +66,29 @@ modules/expo-room-plan-scanner/
   README.md
   ios/
     ExpoRoomPlanScanner.podspec
-    ExpoRoomPlanScannerModule.swift   # Expo Module definition (JS-facing API)
-    RoomScannerViewController.swift   # Hosts RoomCaptureView, builds result
+    RoomPlanScanner.swift             # Expo Module bridge (JS-facing async functions)
+    RoomCaptureViewController.swift   # Hosts RoomCaptureView, builds RoomScanResult
   src/
     index.ts                          # requireNativeModule + re-exports
     types.ts                          # RoomScanResult / RoomScanSummary / error codes
+```
+
+## Result shape
+
+```ts
+{
+  roomId: string,            // echoed back from startRoomScan(roomId)
+  localJsonPath: string,     // Documents/RoomScans/<roomId>/scan-<ts>.json
+  localModelPath: string|null, // .usdz, null if export failed
+  rawJson: object|null,      // re-parsed CapturedRoom JSON for direct use in JS
+  summary: {
+    wallsCount: number,
+    openingsCount: number,   // doors + windows + openings
+    objectsCount: number,
+    estimatedFloorArea: number|null,    // m^2, bounding-box estimate
+    estimatedCeilingHeight: number|null // m, median wall height
+  }
+}
 ```
 
 ## Why a local Expo Module (not a classic RN bridge)
